@@ -1,3 +1,6 @@
+from sqlite3 import IntegrityError
+
+from errors import Duplicate, Missing
 from .init import curs
 from model.explorer import Explorer
 
@@ -36,7 +39,11 @@ def create(explorer: Explorer) -> Explorer:
         values (:name, :country, :description)
     '''
     params = model_to_dict(explorer)
-    _ = curs.execute(query, params)
+
+    try:
+        _ = curs.execute(query, params)
+    except IntegrityError:
+        raise Duplicate(msg=f'Explorer {explorer.name} already exists')
     return get_one(explorer.name)
 
 
@@ -49,11 +56,15 @@ def modify(name: str, explorer: Explorer) -> Explorer:
     params = model_to_dict(explorer)
     params['name_original'] = name
     _ = curs.execute(query.params)
-    return get_one(explorer.name)
+    if curs.rowcount == 1:
+        return get_one(explorer.name)
+    else:
+        raise Missing(msg=f'Explorer {name} not found')
 
 
-def delete(explorer: Explorer) -> bool:
+def delete(name: str):
     query = 'delete from explorer where name = :name'
-    params = {'name': explorer.name}
+    params = {'name': name}
     result = curs.execute(query, params)
-    return bool(result)
+    if curs.rowcount != 1:
+        raise Missing(msg=f"Explorer {name} not found")

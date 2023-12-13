@@ -1,4 +1,6 @@
 import sqlite3
+
+from errors import Missing
 from .init import conn, curs
 from model.creature import Creature
 
@@ -14,7 +16,7 @@ curs.execute('''
 
 def row_to_model(row: tuple) -> Creature:
     name, description, country, area, aka = row
-    return Creature(name, description, country, area, aka)
+    return Creature(name=name, description=description, country=country, area=area, aka=aka)
 
 
 def model_to_dict(creature: Creature) -> dict:
@@ -41,16 +43,18 @@ def create(creature: Creature) -> Creature:
     return get_one(creature.name)
 
 
-def modify(creature: Creature):
+def modify(name: str, creature: Creature):
     query = '''
         update creature 
         set country = :country, name = :name, area = :area, aka = :aka
         where name = :name_original
     '''
     params = model_to_dict(creature)
-    params['name_original'] = creature.name
+    params['name_original'] = name
     _ = curs.execute(query, params)
-    return get_one(creature.name)
+    if curs.rowcount != 1:
+        raise Missing(msg=f'Creature {name} not found')
+    return get_one(name)
 
 
 def replace(creature: Creature):
